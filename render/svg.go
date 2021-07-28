@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-spatial/geom"
+	"github.com/paulmach/orb/geojson"
 	"github.com/whosonfirst/go-geojson-svg"
 	"io"
 )
@@ -14,15 +15,24 @@ type SVGOptions struct {
 	Writer     io.Writer
 }
 
-func RenderSVG(ctx context.Context, opts *SVGOptions, body []byte) error {
+func RenderSVGWithFeatures(ctx context.Context, opts *SVGOptions, features ...*geojson.Feature) error {
 
 	s := svg.New()
 	s.Mercator = true
 
-	err := s.AddFeature(string(body))
+	for idx, f := range features {
 
-	if err != nil {
-		return fmt.Errorf("Failed to add feature to render, %w", err)
+		enc_f, err := f.MarshalJSON()
+
+		if err != nil {
+			return fmt.Errorf("Failed to unmarshal feature (at index %d) to render, %w", idx, err)
+		}
+
+		err = s.AddFeature(string(enc_f))
+
+		if err != nil {
+			return fmt.Errorf("Failed to add feature (at index %d) to render, %w", idx, err)
+		}
 	}
 
 	props := make([]string, 0)
@@ -45,6 +55,6 @@ func RenderSVG(ctx context.Context, opts *SVGOptions, body []byte) error {
 		svg.UseProperties(props),
 	)
 
-	_, err = opts.Writer.Write([]byte(rsp))
+	_, err := opts.Writer.Write([]byte(rsp))
 	return err
 }

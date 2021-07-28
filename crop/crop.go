@@ -11,7 +11,7 @@ import (
 	"log"
 )
 
-func CropFeatureWithTile(ctx context.Context, f *geojson.Feature, tile *slippy.Tile, grid slippy.Grid) ([]byte, error) {
+func CropFeatureWithTile(ctx context.Context, body []byte, tile *slippy.Tile, grid slippy.Grid) ([]byte, error) {
 
 	extent, ok := slippy.Extent(grid, tile)
 
@@ -24,21 +24,28 @@ func CropFeatureWithTile(ctx context.Context, f *geojson.Feature, tile *slippy.T
 		Max: extent.Max(),
 	}
 
-	return CropFeatureWithBounds(ctx, f, bounds)
+	return CropFeatureWithBounds(ctx, body, bounds)
 }
 
-func CropFeatureWithBounds(ctx context.Context, f *geojson.Feature, bounds orb.Bound) ([]byte, error) {
+func CropFeatureWithBounds(ctx context.Context, body []byte, bounds orb.Bound) ([]byte, error) {
 
-	log.Println("CROP", bounds.Min.Lon(), bounds.Min.Lat(), bounds.Max.Lon(), bounds.Max.Lat())
+	f, err := geojson.UnmarshalFeature(body)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal feature, %w", err)
+	}
 
 	geom := f.Geometry
+
 	clipped_geom := clip.Geometry(bounds, geom)
 
 	if clipped_geom == nil {
+		log.Println("CROP", bounds.Min.Lon(), bounds.Min.Lat(), bounds.Max.Lon(), bounds.Max.Lat())
+		log.Println("FROM", geom.Bound())
+
 		return nil, fmt.Errorf("Failed to derive clipped geometry")
 	}
 
 	f.Geometry = clipped_geom
-
 	return f.MarshalJSON()
 }

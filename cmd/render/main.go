@@ -10,6 +10,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/go-spatial/geom/slippy"
 	"github.com/paulmach/orb/geojson"
 	"github.com/sfomuseum/go-whosonfirst-tiles/coverage"
 	"github.com/sfomuseum/go-whosonfirst-tiles/crop"
@@ -18,32 +19,45 @@ import (
 	"gocloud.dev/blob"
 	"io"
 	"log"
+	_ "os"
+	"regexp"
+	"strconv"
 )
 
 func main() {
 
-	bucket_uri := flag.String("bucket-uri", "mem://", "A valid gocloud.dev/blob URI.")
+	data_bucket_uri := flag.String("data-bucket-uri", "mem://", "A valid gocloud.dev/blob URI for writing intermediate data records.")
+	tile_bucket_uri := flag.String("tile-bucket-uri", "mem://", "A valid gocloud.dev/blob URI for writing tile data.")
+
 	iter_uri := flag.String("iterator-uri", "repo://", "A valid whosonfirst/go-whosonfirst-iterate/emitter URI.")
 	flag.Parse()
 
 	uris := flag.Args()
 	ctx := context.Background()
 
-	bucket, err := blob.OpenBucket(ctx, *bucket_uri)
+	data_bucket, err := blob.OpenBucket(ctx, *data_bucket_uri)
 
 	if err != nil {
 		log.Fatalf("Failed to open bucket, %v", err)
 	}
 
-	defer bucket.Close()
+	defer data_bucket.Close()
 
-	opts, err := coverage.DefaultCoverageOptions()
+	tile_bucket, err := blob.OpenBucket(ctx, *tile_bucket_uri)
+
+	if err != nil {
+		log.Fatalf("Failed to open bucket, %v", err)
+	}
+
+	defer tile_bucket.Close()
+
+	coverage_opts, err := coverage.DefaultCoverageOptions()
 
 	if err != nil {
 		log.Fatalf("Failed to create new optsion, %v", err)
 	}
 
-	opts.ZoomLevels = []uint{15}
+	coverage_opts.ZoomLevels = []uint{15}
 
 	iter_cb := func(ctx context.Context, fh io.ReadSeeker, args ...interface{}) error {
 
@@ -53,38 +67,87 @@ func main() {
 			return fmt.Errorf("Failed to read record, %v", err)
 		}
 
-		f, err := geojson.UnmarshalFeature(body)
-
-		if err != nil {
-			return fmt.Errorf("Failed to unmarshal feature, %w", err)
-		}
-
 		tile_cb := func(ctx context.Context, rsp *coverage.Coverage) error {
 
 			for _, t := range rsp.Tiles {
 
-				fname := fmt.Sprintf("%d/%d/%d.svg", t.Z, t.X, t.Y)
+				path := fmt.Sprintf("%d/%d/%d.geojson", t.Z, t.X, t.Y)
 
-				cropped, err := crop.CropFeatureWithTile(ctx, f, &t, opts.Grid)
+				cropped, err := crop.CropFeatureWithTile(ctx, body, &t, coverage_opts.Grid)
 
-				if err != nil {
-					return fmt.Errorf("Failed to crop feature, %w", err)
-				}
-
-				wr, err := bucket.NewWriter(ctx, fname, nil)
+				// This seems to be rooted in the orb/clip/clip.go ring()
+				// method which keeps returning nil but I don't know why
+				// yet...
 
 				if err != nil {
-					return fmt.Errorf("Failed to create new writer for '%s', %v", fname, err)
+					log.Printf("Failed to crop feature '%s', %v", path, err)
+					continue
+
+					// return fmt.Errorf("Failed to crop feature, %w", err)
 				}
 
-				svg_opts := &render.SVGOptions{
-					Writer: wr,
-				}
-
-				err = render.RenderSVG(ctx, svg_opts, cropped)
+				cropped_f, err := geojson.UnmarshalFeature(cropped)
 
 				if err != nil {
-					return fmt.Errorf("Failed to render '%s', %v", fname, err)
+					return fmt.Errorf("Failed to unmarshal cropped feature for '%s', %w", path, err)
+				}
+
+				exists, err := data_bucket.Exists(ctx, path)
+
+				if err != nil {
+					return fmt.Errorf("Failed to determine whether '%s' exists, %w", path, err)
+				}
+
+				var fc *geojson.FeatureCollection
+
+				if exists {
+
+					fh, err := data_bucket.NewReader(ctx, path, nil)
+
+					if err != nil {
+						return fmt.Errorf("Failed to open '%s', %w", path, err)
+					}
+
+					defer fh.Close()
+
+					body, err := io.ReadAll(fh)
+
+					if err != nil {
+						return fmt.Errorf("Failed to read '%s', %w", path, err)
+					}
+
+					doc, err := geojson.UnmarshalFeatureCollection(body)
+
+					if err != nil {
+						return fmt.Errorf("Failed to unmarshal '%s', %w", path, err)
+					}
+
+					fc = doc
+				} else {
+					fc = geojson.NewFeatureCollection()
+				}
+
+				fc.Append(cropped_f)
+
+				enc_fc, err := fc.MarshalJSON()
+
+				if err != nil {
+					return fmt.Errorf("Failed to marshal '%s', %w", path, err)
+				}
+
+				// As written this will only ever write the last feature to tile Z/X/Y
+				// That is a bug...
+
+				wr, err := data_bucket.NewWriter(ctx, path, nil)
+
+				if err != nil {
+					return fmt.Errorf("Failed to create new writer for '%s', %v", path, err)
+				}
+
+				_, err = wr.Write(enc_fc)
+
+				if err != nil {
+					return fmt.Errorf("Failed to write '%s', %w", path, err)
 				}
 
 				return wr.Close()
@@ -93,7 +156,7 @@ func main() {
 			return nil
 		}
 
-		return coverage.CoverageWithFeatureAndCallback(ctx, opts, body, tile_cb)
+		return coverage.CoverageWithFeatureAndCallback(ctx, coverage_opts, body, tile_cb)
 	}
 
 	iter, err := iterator.NewIterator(ctx, *iter_uri, iter_cb)
@@ -106,6 +169,133 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("Failed to iterator URIs, %v", err)
+	}
+
+	// Now iterate over the feature collections and produce tiles
+
+	re, err := regexp.Compile(`(\d+)\/(\d+)\/(\d+)\.geojson$`)
+
+	if err != nil {
+		log.Fatalf("Failed to compile tile regular expression, %v", err)
+	}
+
+	var list func(context.Context, *blob.Bucket, string) error
+
+	list = func(ctx context.Context, data_bucket *blob.Bucket, prefix string) error {
+
+		iter := data_bucket.List(&blob.ListOptions{
+			Delimiter: "/",
+			Prefix:    prefix,
+		})
+
+		for {
+			obj, err := iter.Next(ctx)
+
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				return err
+			}
+
+			path := obj.Key
+
+			if obj.IsDir {
+
+				err := list(ctx, data_bucket, path)
+
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			//
+
+			m := re.FindStringSubmatch(path)
+
+			if len(m) == 0 {
+				continue
+			}
+
+			fh, err := data_bucket.NewReader(ctx, path, nil)
+
+			if err != nil {
+				return fmt.Errorf("Failed to open '%s', %v", path, err)
+			}
+
+			defer fh.Close()
+
+			body, err := io.ReadAll(fh)
+
+			if err != nil {
+				return fmt.Errorf("Failed to read '%s', %v", path, err)
+			}
+
+			fc, err := geojson.UnmarshalFeatureCollection(body)
+
+			if err != nil {
+				return fmt.Errorf("Failed to unmarshal '%s', %v", path, err)
+			}
+
+			str_z := m[1]
+			str_x := m[2]
+			str_y := m[3]
+
+			z, _ := strconv.Atoi(str_z)
+			x, _ := strconv.Atoi(str_x)
+			y, _ := strconv.Atoi(str_y)
+
+			t_path := fmt.Sprintf("%d/%d/%d.svg", z, x, y)
+
+			t := slippy.NewTile(uint(z), uint(x), uint(y))
+
+			wr, err := tile_bucket.NewWriter(ctx, t_path, nil)
+
+			if err != nil {
+				return fmt.Errorf("Failed to create new writer for '%s', %v", t_path, err)
+			}
+
+			extent, _ := slippy.Extent(coverage_opts.Grid, t)
+
+			svg_opts := &render.SVGOptions{
+				Writer:     wr,
+				TileExtent: extent,
+				TileSize:   256,
+			}
+
+			err = render.RenderSVGWithFeatures(ctx, svg_opts, fc.Features...)
+
+			if err != nil {
+				return fmt.Errorf("Failed to render '%s', %v", t_path, err)
+			}
+
+			err = wr.Close()
+
+			if err != nil {
+				return fmt.Errorf("Failed to close '%s', %v", t_path, err)
+			}
+
+			log.Println("Wrote", t_path)
+
+			//
+
+			err = data_bucket.Delete(ctx, path)
+
+			if err != nil {
+				log.Printf("Failed to delete '%s', %v", path, err)
+			}
+		}
+
+		return nil
+	}
+
+	err = list(ctx, data_bucket, "")
+
+	if err != nil {
+		log.Fatalf("Failed to list data bucket, %v", err)
 	}
 
 }
