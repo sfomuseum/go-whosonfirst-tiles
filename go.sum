@@ -7,6 +7,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/gdey/errors v0.0.0-20190426172550-8ebd5bc891fb/go.mod h1:PFaV7MgSRe92Wo9O2H2i1CIm7urUk10AgdSHKyBfjmQ=
 github.com/go-spatial/geom v0.0.0-20210315165355-0e06498b3362 h1:H4g94C4f5oQncPwuVeh3Fd55r5UM6eN1F/t6U/qdXR0=
 github.com/go-spatial/geom v0.0.0-20210315165355-0e06498b3362/go.mod h1:YU06tBGGstQCUX7vMuyF44RRneTdjGxOrp8OJHu4t9Q=
+github.com/go-spatial/geom v0.0.0-20210728181007-c040fef66f77 h1:xqZKV8wwbOqmBl7XxTd9YEhZimgC13Gxvdyq6/ymGOU=
+github.com/go-spatial/geom v0.0.0-20210728181007-c040fef66f77/go.mod h1:YU06tBGGstQCUX7vMuyF44RRneTdjGxOrp8OJHu4t9Q=
 github.com/go-spatial/proj v0.2.0/go.mod h1:ePHHp7ITVc4eIVW5sgG/0Eu9RMAGOQUgM/D1ZkccY+0=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
 github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=

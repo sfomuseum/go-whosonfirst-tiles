@@ -2,7 +2,7 @@
 github.com/aaronland/go-json-query
 # github.com/aaronland/go-roster v0.0.2
 github.com/aaronland/go-roster
-# github.com/go-spatial/geom v0.0.0-20210315165355-0e06498b3362 => github.com/sfomuseum/geom v0.0.0-20210728180130-14e8d02880d3
+# github.com/go-spatial/geom v0.0.0-20210728181007-c040fef66f77
 ## explicit
 github.com/go-spatial/geom
 github.com/go-spatial/geom/slippy
@@ -12,7 +12,6 @@ github.com/paulmach/orb
 github.com/paulmach/orb/geojson
 # github.com/sfomuseum/go-csvdict v0.0.1
 ## explicit
-github.com/sfomuseum/go-csvdict
 # github.com/tidwall/gjson v1.7.5
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.0.3
