@@ -1,3 +1,4 @@
+// package coverage provides methods for deriving map tile coverage for Who's On First records.
 package coverage
 
 import (
@@ -28,6 +29,7 @@ type Coverage struct {
 	Tiles []slippy.Tile
 }
 
+// CoverageCallbackFunc is a user-defined callback function invoked by CoverageWithFeatureAndCallback method.
 type CoverageCallbackFunc func(context.Context, *Coverage) error
 
 // DefaultCoverageOptions returns a CoverageOptions instance with a 4326 grid and zoom levels ranging from 1 to 20.

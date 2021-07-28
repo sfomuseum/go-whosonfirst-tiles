@@ -1,3 +1,4 @@
+// list will emit tile coverage information as CSV-encoded rows for one or more Who's On First records.
 package main
 
 import (
