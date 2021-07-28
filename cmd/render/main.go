@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/go-spatial/geom/slippy"
 	"github.com/paulmach/orb/geojson"
+	"github.com/sfomuseum/go-whosonfirst-tiles"
 	"github.com/sfomuseum/go-whosonfirst-tiles/coverage"
 	"github.com/sfomuseum/go-whosonfirst-tiles/crop"
 	"github.com/sfomuseum/go-whosonfirst-tiles/render"
@@ -22,6 +23,7 @@ import (
 	_ "os"
 	"regexp"
 	"strconv"
+	"sync"
 )
 
 func main() {
@@ -59,6 +61,10 @@ func main() {
 
 	coverage_opts.ZoomLevels = []uint{15}
 
+	// Step 1: Gather all the tile data to render
+
+	mu := new(sync.RWMutex)
+
 	iter_cb := func(ctx context.Context, fh io.ReadSeeker, args ...interface{}) error {
 
 		body, err := io.ReadAll(fh)
@@ -72,6 +78,7 @@ func main() {
 			for _, t := range rsp.Tiles {
 
 				path := fmt.Sprintf("%d/%d/%d.geojson", t.Z, t.X, t.Y)
+				// log.Println(path)
 
 				cropped, err := crop.CropFeatureWithTile(ctx, body, &t, coverage_opts.Grid)
 
@@ -91,6 +98,9 @@ func main() {
 				if err != nil {
 					return fmt.Errorf("Failed to unmarshal cropped feature for '%s', %w", path, err)
 				}
+
+				mu.Lock()
+				defer mu.Unlock()
 
 				exists, err := data_bucket.Exists(ctx, path)
 
@@ -135,9 +145,6 @@ func main() {
 					return fmt.Errorf("Failed to marshal '%s', %w", path, err)
 				}
 
-				// As written this will only ever write the last feature to tile Z/X/Y
-				// That is a bug...
-
 				wr, err := data_bucket.NewWriter(ctx, path, nil)
 
 				if err != nil {
@@ -171,7 +178,7 @@ func main() {
 		log.Fatalf("Failed to iterator URIs, %v", err)
 	}
 
-	// Now iterate over the feature collections and produce tiles
+	// Step 1: Render the tile data
 
 	re, err := regexp.Compile(`(\d+)\/(\d+)\/(\d+)\.geojson$`)
 
@@ -258,7 +265,7 @@ func main() {
 				return fmt.Errorf("Failed to create new writer for '%s', %v", t_path, err)
 			}
 
-			extent, _ := slippy.Extent(coverage_opts.Grid, t)
+			extent := tiles.Extent4326(t)
 
 			svg_opts := &render.SVGOptions{
 				Writer:     wr,
