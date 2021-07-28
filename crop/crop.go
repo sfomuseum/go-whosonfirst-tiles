@@ -4,17 +4,32 @@ package crop
 import (
 	"context"
 	"fmt"
+	"github.com/go-spatial/geom/slippy"
+	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/clip"
 	"github.com/paulmach/orb/geojson"
-	"github.com/paulmach/orb/maptile"
+	"log"
 )
 
-func CropFeatureWithZXY(ctx context.Context, f *geojson.Feature, z uint, x uint, y uint) ([]byte, error) {
+func CropFeatureWithTile(ctx context.Context, f *geojson.Feature, tile *slippy.Tile, grid slippy.Grid) ([]byte, error) {
 
-	zm := maptile.Zoom(uint32(z))
-	tl := maptile.New(uint32(x), uint32(y), zm)
+	extent, ok := slippy.Extent(grid, tile)
 
-	bounds := tl.Bound()
+	if !ok {
+		return nil, fmt.Errorf("Failed to derive extent for tile '%v'", tile)
+	}
+
+	bounds := orb.Bound{
+		Min: extent.Min(),
+		Max: extent.Max(),
+	}
+
+	return CropFeatureWithBounds(ctx, f, bounds)
+}
+
+func CropFeatureWithBounds(ctx context.Context, f *geojson.Feature, bounds orb.Bound) ([]byte, error) {
+
+	log.Println("CROP", bounds.Min.Lon(), bounds.Min.Lat(), bounds.Max.Lon(), bounds.Max.Lat())
 
 	geom := f.Geometry
 	clipped_geom := clip.Geometry(bounds, geom)

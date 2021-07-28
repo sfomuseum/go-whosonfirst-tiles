@@ -35,7 +35,7 @@ type CoverageCallbackFunc func(context.Context, *Coverage) error
 // DefaultCoverageOptions returns a CoverageOptions instance with a 4326 grid and zoom levels ranging from 1 to 20.
 func DefaultCoverageOptions() (*CoverageOptions, error) {
 
-	grid, err := slippy.NewGrid(4326)
+	grid, err := slippy.NewGrid(4326) // 3857)
 
 	if err != nil {
 		return nil, err

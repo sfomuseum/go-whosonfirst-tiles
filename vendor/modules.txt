@@ -23,8 +23,6 @@ github.com/paulmach/go.geojson
 github.com/paulmach/orb
 github.com/paulmach/orb/clip
 github.com/paulmach/orb/geojson
-github.com/paulmach/orb/internal/mercator
-github.com/paulmach/orb/maptile
 github.com/paulmach/orb/project
 # github.com/tidwall/gjson v1.7.5
 github.com/tidwall/gjson
@@ -67,6 +65,7 @@ go.opencensus.io/trace/tracestate
 gocloud.dev/blob
 gocloud.dev/blob/driver
 gocloud.dev/blob/fileblob
+gocloud.dev/blob/memblob
 gocloud.dev/gcerrors
 gocloud.dev/internal/escape
 gocloud.dev/internal/gcerr

@@ -3,6 +3,7 @@ package main
 
 import (
 	_ "gocloud.dev/blob/fileblob"
+	_ "gocloud.dev/blob/memblob"
 )
 
 import (
@@ -21,7 +22,7 @@ import (
 
 func main() {
 
-	bucket_uri := flag.String("bucket-uri", "", "A valid gocloud.dev/blob URI.")
+	bucket_uri := flag.String("bucket-uri", "mem://", "A valid gocloud.dev/blob URI.")
 	iter_uri := flag.String("iterator-uri", "repo://", "A valid whosonfirst/go-whosonfirst-iterate/emitter URI.")
 	flag.Parse()
 
@@ -42,7 +43,7 @@ func main() {
 		log.Fatalf("Failed to create new optsion, %v", err)
 	}
 
-	opts.ZoomLevels = []uint{10}
+	opts.ZoomLevels = []uint{15}
 
 	iter_cb := func(ctx context.Context, fh io.ReadSeeker, args ...interface{}) error {
 
@@ -64,7 +65,7 @@ func main() {
 
 				fname := fmt.Sprintf("%d/%d/%d.svg", t.Z, t.X, t.Y)
 
-				cropped, err := crop.CropFeatureWithZXY(ctx, f, t.Z, t.X, t.Y)
+				cropped, err := crop.CropFeatureWithTile(ctx, f, &t, opts.Grid)
 
 				if err != nil {
 					return fmt.Errorf("Failed to crop feature, %w", err)
