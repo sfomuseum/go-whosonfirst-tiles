@@ -5,6 +5,12 @@ github.com/aaronland/go-roster
 # github.com/go-spatial/geom v0.0.0-20210728181007-c040fef66f77
 ## explicit
 github.com/go-spatial/geom
+github.com/go-spatial/geom/cmp
+github.com/go-spatial/geom/encoding/wkb
+github.com/go-spatial/geom/encoding/wkb/internal/consts
+github.com/go-spatial/geom/encoding/wkb/internal/decode
+github.com/go-spatial/geom/encoding/wkb/internal/encode
+github.com/go-spatial/geom/encoding/wkt
 github.com/go-spatial/geom/slippy
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
@@ -22,6 +28,8 @@ github.com/paulmach/go.geojson
 ## explicit
 github.com/paulmach/orb
 github.com/paulmach/orb/clip
+github.com/paulmach/orb/encoding/wkb
+github.com/paulmach/orb/encoding/wkt
 github.com/paulmach/orb/geojson
 github.com/paulmach/orb/internal/mercator
 github.com/paulmach/orb/maptile
