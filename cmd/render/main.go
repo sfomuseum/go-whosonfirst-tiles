@@ -1,4 +1,7 @@
-// render will generate ... tiles for one or more Who's On First records.
+// render will generate tiles for one or more Who's On First records. This tool uses a two-pass approach. The first
+// pass collects all the cropped features associated with the map tiles for a given record and stores them as a GeoJSON
+// FeatureCollection. The second pass will iterate over those FeatureCollection records (associated with a map tile) and
+// generate a corresponding SVG file.
 package main
 
 import (
@@ -32,6 +35,9 @@ func main() {
 	tile_bucket_uri := flag.String("tile-bucket-uri", "mem://", "A valid gocloud.dev/blob URI for writing tile data.")
 
 	iter_uri := flag.String("iterator-uri", "repo://", "A valid whosonfirst/go-whosonfirst-iterate/emitter URI.")
+
+	zoom_str := flag.String("zoom-levels", "10-18", "Comma-separated list of zoom levels or a '{MIN_ZOOM}-{MAX_ZOOM}' range string.")
+
 	flag.Parse()
 
 	uris := flag.Args()
@@ -59,7 +65,13 @@ func main() {
 		log.Fatalf("Failed to create new optsion, %v", err)
 	}
 
-	coverage_opts.ZoomLevels = []uint{15}
+	zoom_levels, err := tiles.ZoomLevelsFromString(*zoom_str)
+
+	if err != nil {
+		log.Fatalf("Failed to derive zoom levels, %v", err)
+	}
+
+	coverage_opts.ZoomLevels = zoom_levels
 
 	// Step 1: Gather all the tile data to render
 
@@ -75,12 +87,12 @@ func main() {
 
 		tile_cb := func(ctx context.Context, rsp *coverage.Coverage) error {
 
-			for _, t := range rsp.Tiles {
+			for t, _ := range rsp.Tiles {
 
 				path := fmt.Sprintf("%d/%d/%d.geojson", t.Z, t.X, t.Y)
 				// log.Println(path)
 
-				cropped, err := crop.CropFeatureWithTile(ctx, body, &t, coverage_opts.Grid)
+				cropped, err := crop.CropFeatureWithTile(ctx, body, t)
 
 				// This seems to be rooted in the orb/clip/clip.go ring()
 				// method which keeps returning nil but I don't know why
@@ -257,6 +269,7 @@ func main() {
 
 			t_path := fmt.Sprintf("%d/%d/%d.svg", z, x, y)
 
+			// replace with maptile.Tile?
 			t := slippy.NewTile(uint(z), uint(x), uint(y))
 
 			wr, err := tile_bucket.NewWriter(ctx, t_path, nil)
@@ -267,11 +280,9 @@ func main() {
 
 			extent := tiles.Extent4326(t)
 
-			svg_opts := &render.SVGOptions{
-				Writer:     wr,
-				TileExtent: extent,
-				TileSize:   256,
-			}
+			svg_opts := render.DefaultSVGOptions()
+			svg_opts.TileExtent = extent
+			svg_opts.Writer = wr
 
 			err = render.RenderSVGWithFeatures(ctx, svg_opts, fc.Features...)
 

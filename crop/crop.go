@@ -4,29 +4,22 @@ package crop
 import (
 	"context"
 	"fmt"
-	"github.com/go-spatial/geom/slippy"
+	_ "github.com/go-spatial/geom/slippy"
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/clip"
 	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/orb/maptile"
 	"log"
 )
 
-func CropFeatureWithTile(ctx context.Context, body []byte, tile *slippy.Tile, grid slippy.Grid) ([]byte, error) {
+// CropFeatureWithTile will crop the geometry of a GeoJSON Feature defined by 'body' to the extent of 'tile'.
+func CropFeatureWithTile(ctx context.Context, body []byte, tile maptile.Tile) ([]byte, error) {
 
-	extent, ok := slippy.Extent(grid, tile)
-
-	if !ok {
-		return nil, fmt.Errorf("Failed to derive extent for tile '%v'", tile)
-	}
-
-	bounds := orb.Bound{
-		Min: extent.Min(),
-		Max: extent.Max(),
-	}
-
+	bounds := tile.Bound()
 	return CropFeatureWithBounds(ctx, body, bounds)
 }
 
+// CropFeatureWithTile will crop the geometry of a GeoJSON Feature defined by 'body' to the extent of 'bounds'.
 func CropFeatureWithBounds(ctx context.Context, body []byte, bounds orb.Bound) ([]byte, error) {
 
 	f, err := geojson.UnmarshalFeature(body)

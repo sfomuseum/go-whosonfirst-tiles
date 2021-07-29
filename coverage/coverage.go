@@ -4,9 +4,10 @@ package coverage
 import (
 	"context"
 	"fmt"
-	"github.com/go-spatial/geom"
 	"github.com/go-spatial/geom/slippy"
 	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/orb/maptile"
+	"github.com/paulmach/orb/maptile/tilecover"
 	_ "log"
 	"sync"
 )
@@ -25,8 +26,8 @@ type Coverage struct {
 	Id int64
 	// The zoom level being processed.
 	Zoom uint
-	// The list of tiles that cover feature 'Id' at zoom level 'Zoom'.
-	Tiles []slippy.Tile
+	// The set of tiles that cover feature 'Id' at zoom level 'Zoom'.
+	Tiles maptile.Set
 }
 
 // CoverageCallbackFunc is a user-defined callback function invoked by CoverageWithFeatureAndCallback method.
@@ -56,7 +57,7 @@ func DefaultCoverageOptions() (*CoverageOptions, error) {
 }
 
 // CoverageWithFeature returns a map of tiles for a Who's On Feature record. The map is keyed by zoom level and the value of each is a list of tiles that cover the feature.
-func CoverageWithFeature(ctx context.Context, opts *CoverageOptions, body []byte) (map[uint][]slippy.Tile, error) {
+func CoverageWithFeature(ctx context.Context, opts *CoverageOptions, body []byte) (map[uint]maptile.Set, error) {
 
 	rsp_ch := make(chan *Coverage)
 	err_ch := make(chan error)
@@ -64,7 +65,7 @@ func CoverageWithFeature(ctx context.Context, opts *CoverageOptions, body []byte
 
 	go CoverageWithFeatureAndChannels(ctx, opts, body, rsp_ch, err_ch, done_ch)
 
-	t := make(map[uint][]slippy.Tile)
+	t := make(map[uint]maptile.Set)
 
 	for {
 		select {
@@ -143,13 +144,6 @@ func CoverageWithFeatureAndChannels(ctx context.Context, opts *CoverageOptions, 
 
 	bounds := f.Geometry.Bound()
 
-	extent := &geom.Extent{
-		bounds.Min.X(),
-		bounds.Min.Y(),
-		bounds.Max.X(),
-		bounds.Max.Y(),
-	}
-
 	wg := new(sync.WaitGroup)
 
 	for _, z := range opts.ZoomLevels {
@@ -160,12 +154,18 @@ func CoverageWithFeatureAndChannels(ctx context.Context, opts *CoverageOptions, 
 
 			defer wg.Done()
 
-			t := slippy.FromBounds(opts.Grid, extent, z)
+			// I have no idea why this returns what it does
+			// t := slippy.FromBounds(opts.Grid, extent, z)
+
+			uz := uint32(z)
+			mz := maptile.Zoom(uz)
+
+			tiles := tilecover.Geometry(bounds, mz)
 
 			rsp := &Coverage{
 				Id:    id,
 				Zoom:  z,
-				Tiles: t,
+				Tiles: tiles,
 			}
 
 			rsp_ch <- rsp

@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"github.com/sfomuseum/go-whosonfirst-tiles"
 	"github.com/sfomuseum/go-whosonfirst-tiles/coverage"
 	"github.com/whosonfirst/go-whosonfirst-iterate/iterator"
 	"io"
@@ -18,6 +19,8 @@ import (
 func main() {
 
 	iter_uri := flag.String("iterator-uri", "repo://", "A valid whosonfirst/go-whosonfirst-iterate/emitter URI.")
+	zoom_str := flag.String("zoom-levels", "10-18", "Comma-separated list of zoom levels or a '{MIN_ZOOM}-{MAX_ZOOM}' range string.")
+
 	flag.Parse()
 
 	uris := flag.Args()
@@ -31,11 +34,19 @@ func main() {
 	csv_wr := csv.NewWriter(mw)
 	mu := new(sync.RWMutex)
 
-	opts, err := coverage.DefaultCoverageOptions()
+	coverage_opts, err := coverage.DefaultCoverageOptions()
 
 	if err != nil {
 		log.Fatalf("Failed to create new optsion, %v", err)
 	}
+
+	zoom_levels, err := tiles.ZoomLevelsFromString(*zoom_str)
+
+	if err != nil {
+		log.Fatalf("Failed to derive zoom levels, %v", err)
+	}
+
+	coverage_opts.ZoomLevels = zoom_levels
 
 	tile_cb := func(ctx context.Context, rsp *coverage.Coverage) error {
 
@@ -44,7 +55,7 @@ func main() {
 		mu.Lock()
 		defer mu.Unlock()
 
-		for _, t := range rsp.Tiles {
+		for t, _ := range rsp.Tiles {
 
 			out := []string{
 				strconv.FormatInt(rsp.Id, 10),
@@ -68,7 +79,7 @@ func main() {
 			return fmt.Errorf("Failed to read record, %v", err)
 		}
 
-		return coverage.CoverageWithFeatureAndCallback(ctx, opts, body, tile_cb)
+		return coverage.CoverageWithFeatureAndCallback(ctx, coverage_opts, body, tile_cb)
 	}
 
 	iter, err := iterator.NewIterator(ctx, *iter_uri, iter_cb)

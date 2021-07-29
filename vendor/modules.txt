@@ -23,13 +23,19 @@ github.com/paulmach/go.geojson
 github.com/paulmach/orb
 github.com/paulmach/orb/clip
 github.com/paulmach/orb/geojson
+github.com/paulmach/orb/internal/mercator
+github.com/paulmach/orb/maptile
+github.com/paulmach/orb/maptile/tilecover
 github.com/paulmach/orb/project
-# github.com/tidwall/gjson v1.7.5
+# github.com/tidwall/gjson v1.8.0
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.0.3
 github.com/tidwall/match
 # github.com/tidwall/pretty v1.1.0
 github.com/tidwall/pretty
+# github.com/tidwall/sjson v1.1.7
+## explicit
+github.com/tidwall/sjson
 # github.com/whosonfirst/go-geojson-svg v0.0.4
 ## explicit
 github.com/whosonfirst/go-geojson-svg
