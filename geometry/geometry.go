@@ -9,7 +9,7 @@ import (
 	"github.com/paulmach/orb"
 	orb_wkb "github.com/paulmach/orb/encoding/wkb"
 	orb_wkt "github.com/paulmach/orb/encoding/wkt"
-	"github.com/paulsmith/gogeos/geos"	
+	"github.com/paulsmith/gogeos/geos"
 	"log"
 )
 
