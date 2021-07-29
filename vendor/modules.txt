@@ -11,8 +11,6 @@ github.com/go-spatial/geom/encoding/wkb/internal/consts
 github.com/go-spatial/geom/encoding/wkb/internal/decode
 github.com/go-spatial/geom/encoding/wkb/internal/encode
 github.com/go-spatial/geom/encoding/wkt
-github.com/go-spatial/geom/planar
-github.com/go-spatial/geom/planar/clip
 github.com/go-spatial/geom/slippy
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
@@ -29,6 +27,7 @@ github.com/paulmach/go.geojson
 # github.com/paulmach/orb v0.2.2
 ## explicit
 github.com/paulmach/orb
+github.com/paulmach/orb/clip
 github.com/paulmach/orb/encoding/wkb
 github.com/paulmach/orb/encoding/wkt
 github.com/paulmach/orb/geojson
@@ -36,6 +35,9 @@ github.com/paulmach/orb/internal/mercator
 github.com/paulmach/orb/maptile
 github.com/paulmach/orb/maptile/tilecover
 github.com/paulmach/orb/project
+# github.com/paulsmith/gogeos v0.1.2
+## explicit
+github.com/paulsmith/gogeos/geos
 # github.com/tidwall/gjson v1.8.0
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.0.3
